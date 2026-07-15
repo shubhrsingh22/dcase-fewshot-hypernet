@@ -1,0 +1,69 @@
+# Configuration for DCASE few-shot bioacoustic detection: ProtoNet baseline
+# and graph-hypernetwork variants (H-Proto). Reproduces thesis Chapter 3.3.
+# Override any value from the CLI, e.g.:
+#   python -m src.train stage.train=true model.hyper_placement=[3] seed=42
+
+seed: 42
+experiment_name: proto            # proto | hproto1 | hproto2 | hproto3 | hproto_all
+device: cuda
+
+# Which stages to run.
+stage:
+  features: false                 # extract log-mel features -> h5 (run once, shared)
+  train: true
+  eval: true
+
+path:
+  data_root: /mnt/data/datasets/dcase/Development_Set
+  train_dir: ${path.data_root}/Training_Set
+  eval_dir: ${path.data_root}/Validation_Set
+  # Features are extracted once and shared across all runs/seeds.
+  feat_root: /mnt/data/dcase-fewshot-hypernet/features
+  feat_train: ${path.feat_root}/train
+  feat_eval: ${path.feat_root}/eval
+  # Per-run outputs (model checkpoints, prediction csv, scores).
+  work_dir: /mnt/data/dcase-fewshot-hypernet/logs/${experiment_name}/seed_${seed}
+
+# Log-mel feature settings (thesis Sec 3.3.5: n_fft=1024, hop=256, 128 mels).
+features:
+  feature_type: pcen              # pcen (GitHub baseline) | logmel (thesis text)
+  sr: 22050
+  n_fft: 1024
+  hop_mel: 256
+  n_mels: 128
+  fmax: 11025
+  fmin: 50
+  seg_len: 0.200                  # fixed segment length in seconds (train)
+  hop_seg: 0.100
+
+model:
+  encoder: protonet               # protonet (thesis 4x64 conv + FC-256)
+  emb_dim: 256
+  n_filters: 64
+  pool_out: [1, 4]                # adaptive pool grid before FC (fixes emb size)
+  # Graph-hypernetwork (H-Proto). Empty list -> plain ProtoNet baseline.
+  # e.g. [1] -> H-Proto-1, [3] -> H-Proto-3, [1,2,3,4] -> H-Proto-All.
+  hyper_placement: []
+  hyper_knn: 5                    # k nearest neighbours for the GCN graph
+  hyper_max_nodes: 256            # cap on graph nodes (H*W) for memory safety
+
+train:
+  n_shot: 5                       # p-shot support
+  k_way: 5                        # N-way classes per episode
+  lr_rate: 0.001                  # thesis: initial lr 0.001
+  scheduler_gamma: 0.65           # thesis: reduce by factor 0.65 ...
+  scheduler_step_size: 10         # ... every 10 epochs
+  epochs: 50
+  num_episodes: 500
+  patience: 10                    # early stopping on val accuracy
+  contrast: false                 # Surrey-style hard-negative contrastive training
+
+eval:
+  samples_neg: 50
+  iterations: 10
+  query_batch_size: 256
+  threshold: 0.6                  # best operating point from the threshold sweep
+  post_proc: fixed                # fixed (200 ms; DCASE-reported) | adaptive
+  min_dur: 0.200
+  adaptive_frac: 0.6
+  neg_estimate: random            # random | energy (RMS background detection)

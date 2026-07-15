@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+features/
+feat_eval_thesis/
+_val_thesis/
+_smoke*/
+logs/
+logs_*.log
+results/
+workdir/
+*.h5
+*.pth
+*.log
+_*_pid.txt
+.DS_Store
