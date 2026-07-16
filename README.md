@@ -99,6 +99,25 @@ python -m src.sweep_threshold path.work_dir=logs/proto/seed_42 thresholds="0.5,0
 python -m src.eval_best experiment_name=proto path.work_dir=logs/proto/seed_42
 ```
 
+## Parameter count and walltime
+
+Measured with `scripts/params_walltime.py` (single NVIDIA L40S, PyTorch 2.5.1,
+float32, no JIT/torch.compile). Train step = one 5-way 5-shot episode with 5
+queries/class (50 segments of 17 frames x 128 mels), prototypical loss,
+forward+backward+Adam; inference on 128 segments under `no_grad`:
+
+| Model | Trainable params (M) | Train episode (ms) | Inference (ms/segment) |
+|---|---|---|---|
+| proto      | 0.178 | 2.97 | 0.006 |
+| hproto1    | 0.181 | 4.29 | 0.010 |
+| hproto2    | 0.181 | 4.23 | 0.010 |
+| hproto3    | 0.181 | 4.23 | 0.009 |
+| hproto_all | 0.193 | 7.93 | 0.023 |
+
+The graph hypernetwork adds ~2% parameters per placement but 40-170% step
+time, dominated by the k-NN graph construction and dense adjacency ops.
+Raw numbers and environment details: `results/params_walltime.{md,csv}`.
+
 ## Evaluation protocol
 
 Event-based F-measure (`evaluation/`): a predicted event matches a reference POS
